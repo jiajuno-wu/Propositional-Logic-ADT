@@ -1,0 +1,385 @@
+;; CS 335
+;; Final Project
+;; Team members: Manuel Pohl (afternoon section) EMPLID: 23947736
+;;               Jiajun Wu   (morning section)   EMPLID: 23752892  
+
+; ;First part: Proofs
+
+;; PART 1: Using structural induction, prove that any proposition written using the
+;; operators ∧, ∨, -, and ⇒ is logically equivalent to a proposition which uses just
+;; ∨ and -. A proper component of the propositions (p ∧ q), (p ∨ q), (-p), and (p ⇒ q) are p and q.
+
+; We assume that any proposition written using the operators -, v, ^ and -> has an equivalent proposition using only the operators - and v.
+; IH: Let p and p be propositions that are true for both P1 and Q2 be the propositions equivalent to p and q using only - and v operators.
+
+; Base Case: A propostion containing only a proper component p which has the value T/F. This is true since there are no logical operators present.
+;          
+; Case 0 -: (-p), By IH p is true which there is a proposition P1 that is logically equivalent to p and using only - and v.
+;            if p is logically equivalent to P1 then (-p) is logically equivalent to (-P1) and (-P1) is a proposition using only - and v.
+; case 1 v: (p v q), by IH p and q are true. p is logically equivalent to P1 and q is logically equivalent to Q2 where P1 and Q2
+;           are proposition using only - and v.
+;             (p v q) is logically equivalent to (P1 v Q2) and (P1 v Q2) is a proposition which using only - and v.
+
+; Case 2  ^: Using deMorgan's law,(p ^ q) can be transformed into -(-p v -q). By IH, p and q are true.
+;            p is logically equivalent to P1 and q is logically equivalent to Q2 where P1 and Q2 are proposition using only - and v.
+;            (p ^ q) is logically equivalent to -(-p v -q), which is logically equivalent to -(-P1 v -Q2) which is a proposition using only - and v.
+
+; Case 3 ->: Using material implication, IMPLIES (p -> q) can be transformed into the equivalent expression NOT p OR q (-p v q).
+;            By IH, p and q are true. p is logically equivalent to P1 and q is logically equivalent to Q2 where P1 and Q2 are proposition using only - and v.
+;             (p -> q) is logically equivalent to (-p v q) is logically equivalent to (-Q1 v Q2) clearly this is a proposition using only - and v.
+;
+
+; Hence, we have proved by structural induction that any proposition written using -, v, ^ and -> has an equivalent expression using just - and v.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ;user instruction:
+; ;1. how to create an expression?
+; ;      we provide 4 "make-" constructors to create the expressions ∧, ∨, -, and ⇒.
+; ;      for example (make-v p q) => ('v p q)
+; ;      note: p and q can also be a expression constructed by "make-" constructors.
+; 
+; ;2. how to select the operator and components?
+; ;       we provide (operator) (first-component) (second-component)
+; ;       for example(operator (make-v p q)) will return the 'v.
+; ;        (first-component(make-v p q)) will return p and second will return q.
+; 
+; ;3. how to use the transformer function?
+; ;       this is a procedure that reduce the expression into an expression logically equivalent and only using
+; ;       v or -  as operator. The input expression has to statisfy the BNF for A-exp mentioned below
+; 
+; ;4. how to use the interpreter function?
+; ;       interpreter take an expression and a list of bindings as input, and it will return the truth value of the input expression
+; ;        base on the bindings specified for the proper components in the input expression.
+; ;        Note: the binding must provide a T|F value to all of the variables that are contained in the expression.
+; ;       !!!the binding must in the form of ( (variable:value) ...(variable:value) )
+; ;        The input expression must statisfy the BNF for A-exp mentioned below
+; 
+; ; The system respect the abstraction barrier, all the method like transformer and interpreter are using
+; ; only constructor , selector to create and access data. Chaninge the lower level repersentaion of the data
+; ; would result in the selector returing the wrong value, it would cause all methods to run with corrupted data.
+; ;
+; ;       some sample A-exp inputs for the transformer and interpreter functions are mentioned in the testing section
+; ;       
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; PART 2.1: Define a datatype for the class P_V of propositions.
+;; constructors:
+
+; BNF for least class containing T (true), F (false), and each
+; variable v in V which is closed under the operations ^ (and), ∨ (or), - (not), and
+; -> (implies):
+
+; A-exp ::= (T|F) | (make-v A-exp A-exp) | (make-^ A-exp A-exp) | (make-neg A-exp) | (make-> A-exp A-exp)
+;
+; for the folloing make expression:
+; pre: p and q are valid A-exp's
+; post: returns an A-exp (operator p q) where operator can be v, ^, -, ->.
+
+(define (make-v p q)
+  (list 'v p q))
+
+(define (make-^ p q)
+  (list '^ p q))
+
+(define (make-neg p)
+  (cond ((atom? p) (list '- p))
+        ((neg-exp? p) (first-component p))
+        (else (list '- p))))
+
+(define (make-> p q)
+  (list '-> p q))
+
+(define (atom? x)
+  (and (not (null? x)) (not (pair? x))))
+
+
+;; selectors:
+;; for the following selecotor functions:
+;; pre: prop is an A-exp that is not a variable
+;; post: returns the, operator, first and second component respectively
+
+(define (operator prop)
+  (car prop))
+(define (first-component prop)
+  (cadr prop))
+(define (second-component prop)
+  (caddr prop))
+
+;; classifiers:
+;; pre: prop is a valid A-exp
+;; returns the correct operator according to the function 
+
+(define (v-exp? prop)
+  (eq? (operator prop) 'v))
+(define (^-exp? prop)
+  (eq? (operator prop) '^))
+(define (neg-exp? prop)
+  (eq? (operator prop) '-))
+(define (->-exp? prop)
+  (eq? (operator prop) '->))
+
+
+
+
+; PART 2.2): Using this datatype, develop a purely functional R5RS program which
+; inputs a proposition in P_V constructed using ∧, ∨, -, and -> and which outputs a
+; logically equivalent proposition which uses only ∨ and -. Prove the correctness of
+; your program using the proof you gave in Part One.
+
+
+
+;; we have to utilize the make-v and make-neg functions for each expression using the operators ∧, ∨, ¬, and ⇒ in
+;; order to transform -> and ^ expressions. We then recurse on the components of each expression until they are
+;; porper components/atoms
+
+; ;Design idea  / proof is the first part of the project
+
+;; Base case: If the input expression is a variable (Atom), it is returned because no transformation is necessary
+;; IH: the recursive calls on the first and/or second components of the A-exp's return the logical equivalent A-exp
+;;     using only the operators -, v.
+;; IS: the inductive steps are derived from the proof given in part 1.
+;; for case 0,1 from part 1 (-, v) we do not have to perform a transformation so we only have to use the make-neg and make-v
+;; respectively and then recursively call the transform function on the first
+;; component for - expression and the first- and second component for ^ expression.
+;; for case 2 from part 1 (AND), we have to transform the ^ expression using
+;; make-neg(make-v(make-neg(first-component))make-neg(second-component)))) which yields -(-p OR -q)
+;; where p is the first component and q is the second component
+;; for case 3 from part 1 (->), we have to transfrom the -> expression using
+;; make-v(make-neg(first component) (second-component)))) which yields (-p OR q) where p is the first component and q is the second component  
+;; **ALL the tranforme is base on de morgen law.
+
+;; pre-condition: the input expression is a valid A-exp according to the above specified BNF.
+(define (transformer expression)
+  (cond ((atom? expression) expression)
+        ((^-exp? expression)  ;; CASE 1
+         (make-neg (make-v (make-neg (transformer (first-component expression)))
+                           (make-neg (transformer (second-component expression))))))
+        ((->-exp? expression) ;; CASE 2
+         (make-v (make-neg (transformer (first-component expression)))
+                 (transformer (second-component expression))))
+        ((neg-exp? expression) ;; CASE 0
+         (make-neg (transformer (first-component expression))))
+        (else (make-v (transformer (first-component expression)) (transformer (second-component expression)))))) ;; else case for v
+;; post-condition: the output is A-exp that is logically equivalent to the input A-exp but only uses - and v operators.
+
+
+; part 2.3) to implement an evaluator we have to define the expressions ^, v, -, -> according to their truth table values
+; instead of inputting p, q we will use #t or #f as input variables for the propostion
+
+
+
+; ; these procedure are {and , or , not , implies}
+
+
+;; pre: p and q are boolean values
+;; post: correct truth value as output for given operators
+(define (ev-^ p q)
+  (cond ((and (eq? p #t)(eq? q #t)) #t)
+        (else #f)))
+(define(ev-v p q)
+  (cond ((and (eq? p #f)(eq? q #f)) #f)
+        (else #t)))
+(define (ev-neg p)
+  (cond ((eq? p #t) #f)
+        (else #t)))
+(define (ev-> p q)
+  (cond ((and (eq? p #t)(eq? q #f)) #f)
+        (else #t)))
+
+
+
+
+
+;; Interpreter
+
+;; for the interpreter we need a list of bindings of truth values for the variables within in the
+;; proposition. We will be using two variables for testing p and q and define an A List for
+;; testing purposes/user input. Since we are using two variables, to cover every possible scenario of
+;; either one of the variables to have the truth value T or F, we need an A List containing 4 lists:
+
+;; A List for bindings for variables p,q:
+
+;; these functions are defined for testing. The last two letters after bindings indicate the truth values for
+;; p and q respectively
+
+(define bindingstt (list (list 'p #t) (list 'q #t)))
+(define bindingstf (list (list 'p #t) (list 'q #f)))
+(define bindingsft (list (list 'p #f) (list 'q #t)))
+(define bindingsff (list (list 'p #f) (list 'q #f)))
+
+;; to make the interpreter function work, we must first identify which binding belongs to each variable contained in the input proposition
+;; In order to do so we construct the ID-binding function:
+;; the ID-bindig functions will be invoked by the interpreter when (eq? atom expression) == T,
+;; so the pre-condition for the ID-binding function is that the input proposition is an atom/variable and the list of bindings contains the
+;; the input variable. We scan the list of bindings until the element in the list is equal to the input variable and return the binding. Since the binding for
+;; a variable cannot change, the binding for the variable that is returned to the interpreter function is correct for the entire proposition.
+
+
+(define (ID-binding var list-of-bindings)
+  (cond ((eq? (caar list-of-bindings) var) (cadr (car list-of-bindings))) ;;in our case, the first caar bindig==p, the caar of the cdr would be q
+        (else(ID-binding var (cdr list-of-bindings)))))
+
+
+
+;; Interpreter function:
+
+;; pre-condition: the input to the interpreter function is a valid A-exp as specified in the BNF mentioned aboove with truth values as proper components
+;; post-condition: the evaluator function returns a truth value (T/F) for the input A-exp
+;; The base case is reached when the expression, exp, is an atom, meaning the expression is a single truth value.
+;; This truth value is the one that will be returned by the function
+;; We assume that the returned truth value from component or each A-exp, which can be proper components itself as specified in the BNF, is correct.
+;; For the operators ^, v, -> we have to recurse on the first and the second component: e.g for v-exp:
+;;(ev-v (evaluator (first-component exp)) (evaluator (second-component exp))). Where ev-v is specified above according to the truth values for disjunctions
+;; For the negation (-) operator we only have to use recurse on one operator using (ev-neg (evaluator (first-component exp)))), where
+;; ev-neg is specified above according to the truth values for negation.
+;; base case: when an exp is an atom, the value of the exp is the value of the atom.
+;; IH: we assume the recursive calls on the first and/or second component returns the 
+;;     correct truth values for those components
+;; IS: based on the operator of the expression, the corresponding prodecure-calls (ev-calls) are applied and accoridng to the IH
+;;     will return the correct value.
+
+        
+(define (interpreter exp list-of-bindings)
+  (cond ((atom? exp) (ID-binding exp list-of-bindings))
+        ((v-exp? exp)(ev-v (interpreter (first-component exp)list-of-bindings) (interpreter (second-component exp)list-of-bindings)))
+        ((^-exp? exp) (ev-^ (interpreter (first-component exp)list-of-bindings) (interpreter (second-component exp)list-of-bindings)))
+        ((->-exp? exp) (ev-> (interpreter (first-component exp)list-of-bindings) (interpreter (second-component exp)list-of-bindings)))
+        (else (ev-neg (interpreter (first-component exp)list-of-bindings)))))
+
+
+
+;; Comparator
+
+;; the comparator function inputs an A-exp that uses any of the available -, v, ^, -> operators. The function then compares the evaluated truth value
+;; for the input expression in its original form and its transformed form which only uses the operators -, v.
+;; same A-exp after it was transformed by the transformer function to use only -, v operators.
+
+;; pre condition: both input expression are valid A-expressions as specified in the BNF mentioned above. The list-of-bindings has to be same for the
+;; original and transformed expression
+;; post condition: the comparator function returns the a truth value. It returns True if both expressions are logically equivalent
+;; and false if the expressions are not logically equivalent
+
+(define (comparator exp list-of-bindings)
+  (cond ((eq? (interpreter exp list-of-bindings) (interpreter (transformer exp)list-of-bindings)) #t)
+        (else #f)))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Testing and user instructions ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; input criteria and sample fucntions for the user to test transformer function:
+
+;;                     input                  meaning           pre-defined as   
+
+;; negation (-):     (make-neg 'p)            (-p)                 e1
+;; conjunction (^):  (make-^ 'p 'q)           (p ^ q)              e2
+;; disjunction (v):  (make-v 'p 'q)           (p v q)              e3
+;; implication (->): (make-> 'p 'q)           (p -> q)             e4
+
+(define e1 (make-neg 'p))
+(define e2 (make-^ 'p 'q))
+(define e3 (make-v 'p 'q))
+(define e4 (make-> 'p 'q))
+
+
+;;;;; tests for transformer function ;;;;;;
+
+
+(display "Testing transformer function")
+(display "\n")
+(display "\n")
+(display "4 basic expressions")
+(display "\n")
+(display e1)
+(display "\n")
+(display e2)
+(display "\n")
+(display e3)
+(display "\n")
+(display e4)
+(display "\n")
+(display "4 basic expressions transformed to using only -, v")
+(display "\n")
+(transformer e1)
+(transformer e2)
+(transformer e3)
+(transformer e4)
+(display "\n")
+(display "Transforming more complex expressions:")
+(display "\n")
+(display "original expression1: ")
+(display (make-neg (make-> e1 e2)))
+(display "\n")
+(display "transformed expression1: ")
+(transformer (make-neg (make-> e1 e2)))
+(display "original expression2: ")
+(display (make-neg (make-> (make-v (make-^ e3 e4) e2) e4)))
+(display "\n")
+(display "transformed expression2: ")
+(transformer (make-neg (make-> (make-v (make-^ e3 e4) e2) e4)))
+
+;; tests for Interpreter
+
+;; input criteria for the user to match our BNF for the A-expressions:
+
+
+
+
+(display "\nTesting for Evaluator function \n")
+
+(display "Evaluated expressions with A-List: bindingstf")
+(newline)
+(display "e1 ")
+(interpreter e1 bindingstf)
+(display "e2 ")
+(interpreter e2 bindingstf)
+(display "e3 ")
+(interpreter e3 bindingstf)
+(display "e4 ")
+(interpreter e4 bindingstf)
+(newline)
+(display "Evaluating more complex expressions with A-List: bindingstf")
+(newline)
+(display "original expression1: ")
+(display (make-neg (make-> e1 e2)))
+(newline)
+(display "evaluated expression1 with A-List: bindingstf")
+(interpreter (make-neg (make-> e1 e2))bindingstf)
+(display "original expression2: ")
+(display (make-neg (make-> (make-v (make-^ e3 e4) e2) e4)))
+(newline)
+(display "evaluated expression2 with A-List: bindingstf")
+(interpreter (make-neg (make-> (make-v (make-^ e3 e4) e2) e4))bindingstf)
+
+;; Testing the Comparator function
+(newline)
+(display "Comparing results of original and its transformed expression:")
+(newline)
+(newline)
+(display "original expression1: ")
+(display (make-neg (make-> e1 e2)))
+(newline)
+(display "transformed expression1: ")
+(transformer (make-neg (make-> e1 e2)))
+(display "evaluated original expression1 with A-List: bindingstf")
+(interpreter (make-neg (make-> e1 e2))bindingstf)
+(display "evaluated transformed expression1 with A-List: bindingstf")
+(interpreter (transformer(make-neg (make-> e1 e2)))bindingstf)
+(newline)
+(display "original expression2: ")
+(display (make-neg (make-neg (make-> (make-v (make-^ e3 e4) e2) e4))))
+(newline)
+(display "transformed expression2: ")
+(transformer (make-neg (make-neg (make-> (make-v (make-^ e3 e4) e2) e4))))
+(display "evaluated original expression2 with A-List: bindingstf")
+(interpreter (make-neg (make-> (make-v (make-^ e3 e4) e2) e4))bindingstf)
+(display "evaluated transformed expression2 with A-List: bindingstf")
+(interpreter (transformer(make-neg (make-> (make-v (make-^ e3 e4) e2) e4)))bindingstf)
+(newline)
+(display "Compare evaluation of original and transformed expression:")
+(comparator (make-neg (make-> (make-v (make-^ e3 e4) e2) e4))bindingstf)
+
